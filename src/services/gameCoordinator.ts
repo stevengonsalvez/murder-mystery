@@ -86,10 +86,7 @@ export class GameCoordinator {
   private checkClueVisibility(clue: Clue, playerId: string): boolean {
     const playerState = this.gameState.getPlayerState(playerId);
     
-    // Check if the player has discovered prerequisite clues
     const hasPrerequisites = clue.visibilityConditions.every(condition => {
-      // This is a simplified check - in a real implementation,
-      // you might want to use a more sophisticated condition system
       return playerState.discoveredClues.some(discoveredClue => 
         discoveredClue.includes(condition)
       );
@@ -122,52 +119,18 @@ export class GameCoordinator {
   }
 
   private generateVictoryFeedback(evidence: string[]): string {
-    // In a real implementation, you might want to use the LLM to generate
-    // more sophisticated feedback based on the evidence provided
     return `Congratulations! You've solved the mystery. Your evidence was solid:
       ${evidence.join('\n')}`;
   }
 
   private generateFailureFeedback(evidence: string[]): string {
-    // Similarly, this could be enhanced with LLM-generated feedback
     return `Your accusation was incorrect. Consider:
       - Review all discovered clues
       - Question more suspects
       - Look for contradictions in alibis`;
   }
 
-  getGameSummary(playerId: string): {
-    discoveredClueCount: number;
-    totalClueCount: number;
-    interactionCount: number;
-    progress: number;
-    publicEvents: Event[];
-  } {
-    const playerState = this.gameState.getPlayerState(playerId);
-    const discoveredClues = this.gameState.getDiscoveredClues(playerId);
-
-    return {
-      discoveredClueCount: discoveredClues.length,
-      totalClueCount: this.story.clues.length,
-      interactionCount: playerState.interactionsHistory.length,
-      progress: this.gameState.getStoryProgress(),
-      publicEvents: this.gameState.getAllPublicEvents()
-    };
-  }
-
-  // Add hint system for stuck players
-  async getHint(playerId: string): Promise<string> {
-    const playerState = this.gameState.getPlayerState(playerId);
-    const discoveredClues = this.gameState.getDiscoveredClues(playerId);
-    
-    // In a real implementation, you would use the LLM to generate
-    // contextual hints based on the player's progress
-    if (discoveredClues.length < this.story.clues.length * 0.3) {
-      return "Try searching more locations for physical evidence.";
-    } else if (playerState.interactionsHistory.length < 5) {
-      return "Question more characters about their whereabouts during the crime.";
-    } else {
-      return "Review the relationships between characters for potential motives.";
-    }
+  getGameSummary(playerId: string) {
+    return this.gameState.getGameSummary(playerId);
   }
 }

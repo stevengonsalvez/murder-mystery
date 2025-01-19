@@ -1,14 +1,8 @@
-import Anthropic from '@anthropic-ai/sdk';
 import { MysteryStory, Character, Clue } from '../types/story';
-import { createStoryPrompt, createCharacterResponsePrompt, createHintPrompt } from './prompts';
 
 export class LLMService {
-  private anthropic: Anthropic;
-
   constructor(apiKey: string) {
-    this.anthropic = new Anthropic({
-      apiKey: apiKey
-    });
+    // API key is now handled by the backend
   }
 
   async generateStory(options: {
@@ -17,31 +11,23 @@ export class LLMService {
     locationType: string;
     theme: string;
   }): Promise<MysteryStory> {
-    const prompt = createStoryPrompt(options);
-
     try {
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-opus-20240229',
-        max_tokens: 4000,
-        temperature: 0.7,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+      const response = await fetch('http://localhost:3001/api/generate-story', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(options),
       });
 
-      // Extract the JSON from the response
-      const jsonMatch = response.content[0].text.match(/\{[\s\S]*\}/);
-      if (!jsonMatch) {
-        throw new Error('No valid JSON found in response');
+      if (!response.ok) {
+        throw new Error('Failed to generate story');
       }
 
-      const story: MysteryStory = JSON.parse(jsonMatch[0]);
-      
-      // Validate the story structure
+      const story: MysteryStory = await response.json();
       this.validateStoryStructure(story);
-      
       return story;
+      
     } catch (error) {
       console.error('Error generating story:', error);
       throw new Error('Failed to generate mystery story');
@@ -54,49 +40,25 @@ export class LLMService {
     askedBy: Character;
     discoveredClues: Clue[];
   }): Promise<string> {
-    const prompt = createCharacterResponsePrompt(params);
-
     try {
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-opus-20240229',
-        max_tokens: 1000,
-        temperature: 0.8,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
+      const response = await fetch('http://localhost:3001/api/character-response', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(params),
       });
 
-      return response.content[0].text;
+      if (!response.ok) {
+        throw new Error('Failed to generate response');
+      }
+
+      const data = await response.json();
+      return data.response;
+
     } catch (error) {
       console.error('Error generating character response:', error);
       throw new Error('Failed to generate character response');
-    }
-  }
-
-  async generateHint(params: {
-    discoveredClues: Clue[];
-    unsolvedClues: Clue[];
-    interactionHistory: Array<{question: string; answer: string}>;
-    story: MysteryStory;
-  }): Promise<string> {
-    const prompt = createHintPrompt(params);
-
-    try {
-      const response = await this.anthropic.messages.create({
-        model: 'claude-3-opus-20240229',
-        max_tokens: 300,
-        temperature: 0.7,
-        messages: [{
-          role: 'user',
-          content: prompt
-        }]
-      });
-
-      return response.content[0].text;
-    } catch (error) {
-      console.error('Error generating hint:', error);
-      throw new Error('Failed to generate hint');
     }
   }
 
@@ -125,7 +87,7 @@ export class LLMService {
     story.characters.forEach(character => {
       character.relationships.forEach(relationship => {
         if (!characterIds.has(relationship.characterId)) {
-          throw new Error(\`Invalid relationship: character \${relationship.characterId} not found\`);
+          throw new Error(`Invalid relationship: character ${relationship.characterId} not found`);
         }
       });
     });
@@ -134,7 +96,7 @@ export class LLMService {
     story.timeline.forEach(event => {
       event.participants.forEach(participantId => {
         if (!characterIds.has(participantId)) {
-          throw new Error(\`Invalid timeline event: character \${participantId} not found\`);
+          throw new Error(`Invalid timeline event: character ${participantId} not found`);
         }
       });
     });
