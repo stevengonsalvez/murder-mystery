@@ -39,6 +39,10 @@ export class GameState {
     });
   }
 
+  getAllPlayers(): Map<string, PlayerState> {
+    return this.players;
+  }
+
   recordInteraction(interaction: Omit<Interaction, 'timestamp'>): void {
     const fromPlayer = Array.from(this.players.values())
       .find(p => p.characterId === interaction.fromCharacterId);
@@ -110,5 +114,32 @@ export class GameState {
     ).size;
 
     return (discoveredClues / totalClues) * 100;
+  }
+
+  getGameSummary(playerId: string): {
+    story: MysteryStory;
+    characters: Character[];
+    discoveredClues: Clue[];
+    discoveredClueCount: number;
+    totalClueCount: number;
+    interactionCount: number;
+    interactions: Interaction[];
+    progress: number;
+    publicEvents: Event[];
+  } {
+    const playerState = this.getPlayerState(playerId);
+    const discoveredClues = this.getDiscoveredClues(playerId);
+
+    return {
+      story: this.story,
+      characters: this.story.characters,
+      discoveredClues,
+      discoveredClueCount: discoveredClues.length,
+      totalClueCount: this.story.clues.length,
+      interactionCount: playerState.interactionsHistory.length,
+      interactions: playerState.interactionsHistory,
+      progress: this.getStoryProgress(),
+      publicEvents: this.getAllPublicEvents()
+    };
   }
 }
