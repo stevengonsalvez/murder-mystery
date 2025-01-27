@@ -21,12 +21,23 @@ export class LLMService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate story');
+        const errorText = await response.text();
+        throw new Error('Failed to generate story: ' + errorText);
       }
 
-      const story: MysteryStory = await response.json();
-      this.validateStoryStructure(story);
-      return story;
+      const story = await response.json();
+      
+      // Convert date strings to Date objects in timeline
+      const processedStory = {
+        ...story,
+        timeline: story.timeline.map((event: any) => ({
+          ...event,
+          timestamp: new Date(event.timestamp)
+        }))
+      };
+
+      this.validateStoryStructure(processedStory);
+      return processedStory;
       
     } catch (error) {
       console.error('Error generating story:', error);
@@ -50,7 +61,8 @@ export class LLMService {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate response');
+        const errorText = await response.text();
+        throw new Error('Failed to generate response: ' + errorText);
       }
 
       const data = await response.json();
@@ -63,11 +75,29 @@ export class LLMService {
   }
 
   private validateStoryStructure(story: MysteryStory): void {
-    // Ensure all required fields are present
-    if (!story.id || !story.setting || !story.characters || 
-        !story.victimId || !story.murdererId || !story.clues || 
-        !story.timeline || !story.solution) {
-      throw new Error('Invalid story structure: missing required fields');
+    console.log('Validating story structure:', story);
+    
+    // Basic structure check
+    if (!story || typeof story !== 'object') {
+      throw new Error('Invalid story structure: story must be an object');
+    }
+
+    // Required fields check
+    const requiredFields = ['id', 'setting', 'characters', 'victimId', 'murdererId', 'clues', 'timeline', 'solution'];
+    const missingFields = requiredFields.filter(field => !story[field]);
+    
+    if (missingFields.length > 0) {
+      throw new Error('Invalid story structure: missing required fields: ' + missingFields.join(', '));
+    }
+
+    // Setting check
+    if (!story.setting.location || !story.setting.timePeriod || !story.setting.description || !Array.isArray(story.setting.rooms)) {
+      throw new Error('Invalid story structure: setting missing required properties');
+    }
+
+    // Characters check
+    if (!Array.isArray(story.characters) || story.characters.length === 0) {
+      throw new Error('Invalid story structure: characters must be a non-empty array');
     }
 
     // Validate character references
@@ -87,18 +117,34 @@ export class LLMService {
     story.characters.forEach(character => {
       character.relationships.forEach(relationship => {
         if (!characterIds.has(relationship.characterId)) {
-          throw new Error(`Invalid relationship: character ${relationship.characterId} not found`);
+          throw new Error('Invalid relationship: character ' + relationship.characterId + ' not found');
         }
       });
     });
 
     // Validate timeline references valid characters
+    if (!Array.isArray(story.timeline)) {
+      throw new Error('Invalid story structure: timeline must be an array');
+    }
+
     story.timeline.forEach(event => {
+      if (!Array.isArray(event.participants)) {
+        throw new Error('Invalid story structure: event participants must be an array');
+      }
+
       event.participants.forEach(participantId => {
         if (!characterIds.has(participantId)) {
-          throw new Error(`Invalid timeline event: character ${participantId} not found`);
+          throw new Error('Invalid timeline event: character ' + participantId + ' not found');
         }
       });
     });
+
+    // Clues check
+    if (!Array.isArray(story.clues) || story.clues.length === 0) {
+      throw new Error('Invalid story structure: clues must be a non-empty array');
+    }
+
+    // All validation passed
+    console.log('Story structure validation passed');
   }
 }
