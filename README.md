@@ -1,5 +1,7 @@
 # Murder Mystery Game
 
+[![Status](https://img.shields.io/badge/Status-Work%20In%20Progress-yellow)](https://github.com/yourusername/murder-mystery)
+
 An interactive multiplayer murder mystery game built with React, TypeScript, and Socket.IO, powered by LLM for dynamic story generation and character interactions.
 
 ## Features
